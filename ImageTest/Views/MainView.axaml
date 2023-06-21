@@ -16,8 +16,10 @@
   <!--<Image Source="/Assets/table.png"/>-->
   <DockPanel LastChildFill="True">
     <Slider DockPanel.Dock="Right" Minimum="0" Maximum="100" 
+            Orientation="Vertical"
             Value="{Binding Sliderval}"
             Height="200"/>
-    <Image Source="{Binding bmp}"/>
+    <!--<Image x:Name="image" Source="{Binding bmp}"/>-->
+    <Image x:Name="image" Source="{Binding bmp}"/>
   </DockPanel>
 </UserControl>
