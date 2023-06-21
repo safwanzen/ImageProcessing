@@ -25,8 +25,8 @@ public partial class MainView : UserControl
 
         img = this.FindControl<Image>("image");
 
-        invalidate = () => Dispatcher.UIThread.InvokeAsync(img.InvalidateVisual);
-        viewModel = new MainViewModel(invalidate);
-        DataContext = viewModel;
+        //invalidate = () => Dispatcher.UIThread.InvokeAsync(img.InvalidateVisual);
+        //viewModel = new MainViewModel(invalidate);
+        //DataContext = viewModel;
     }
 }

@@ -10,6 +10,7 @@ using ReactiveUI;
 using Avalonia.Media;
 using Avalonia.Skia.Helpers;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace ImageTest.ViewModels;
 
@@ -17,9 +18,9 @@ public class MainViewModel : ViewModelBase
 {
     private Action _invalidate;
 
-    public MainViewModel(Action invalidate)
+    public MainViewModel(/*Action invalidate*/)
     {
-        _invalidate = invalidate;
+        //_invalidate = invalidate;
         Init();
 
         this.WhenAnyValue(x => x.Sliderval)
@@ -63,34 +64,21 @@ public class MainViewModel : ViewModelBase
         var canvas = new SKCanvas(displaybitmap);
         canvas.DrawBitmap(sourcebitmap, new SKPoint(0, 0), paint); // make it grayscale
 
-        // make bitmap black and white
-        for (int row = 0; row < h; row++)
-        {
-            for (int col = 0; col < w; col++)
-            {
-                displaybitmap.GetPixel(col, row).ToHsv(out var hue, out var sat, out float v);
-                //var gv = px.Red * 0.21f + px.Green * 0.72f + px.Blue * 0.07f;
-                int val = v > Sliderval ? 100 : 0;
-                //if (v > Sliderval + 20) val = 100;
-                //else if (v < Sliderval - 20) val = 0;
-                //else val = 50;
-                displaybitmap.SetPixel(col, row, SKColor.FromHsv(hue, sat, val));
-            }
-        }
+        using SKBitmap _bmp = displaybitmap.Copy();
 
-        // make bitmap smooth?
+        // median filter
         for (int row = 0; row < h; row++)
         {
             for (int col = 0; col < w; col++)
             {
+                List<float> values = new();
+
                 float gv = 100;
                 var xcoord = col;
                 var ycoord = row;
 
-                float sum = 0;
-
-                for (int yy = -2; yy <= 2; yy++)
-                    for (int xx = -2; xx <= 2; xx++)
+                for (int yy = -3; yy <= 3; yy++)
+                    for (int xx = -3; xx <= 3; xx++)
                     {
                         var _x = col + xx;
                         var _y = row + yy;
@@ -100,14 +88,62 @@ public class MainViewModel : ViewModelBase
                             gv = v;
                         }
 
-                        sum += gv;// * kernel[(yy + 1) * 3 + xx + 1];
+                        values.Add(gv);
                     }
 
-                sum /= 25;
+                values.Sort();
                 displaybitmap.GetPixel(col, row).ToHsv(out float hue, out float sat, out float _);
-                displaybitmap.SetPixel(col, row, SKColor.FromHsv(hue, sat, sum));
+                _bmp.SetPixel(col, row, SKColor.FromHsv(hue, sat, values[values.Count / 2]));
             }
         }
+
+        // make bitmap black and white
+        /*
+        for (int row = 0; row < h; row++)
+        {
+            for (int col = 0; col < w; col++)
+            {
+                _bmp.GetPixel(col, row).ToHsv(out var hue, out var sat, out float v);
+                //var gv = px.Red * 0.21f + px.Green * 0.72f + px.Blue * 0.07f;
+                //int val = v > Sliderval ? 100 : 0;
+                int val;
+                if (v > Sliderval + 20) val = 100;
+                else if (v < Sliderval - 20) val = 0;
+                else val = 50;
+                _bmp.SetPixel(col, row, SKColor.FromHsv(hue, sat, val));
+            }
+        }*/
+
+        // blur
+        //for (int row = 0; row < h; row++)
+        //{
+        //    for (int col = 0; col < w; col++)
+        //    {
+        //        float gv = 100;
+        //        var xcoord = col;
+        //        var ycoord = row;
+
+        //        float sum = 0;
+
+        //        for (int yy = -1; yy <= 1; yy++)
+        //            for (int xx = -1; xx <= 1; xx++)
+        //            {
+        //                var _x = col + xx;
+        //                var _y = row + yy;
+        //                if (_x >= 0 && _y >= 0 && _x < displaybitmap.Width && _y < displaybitmap.Height)
+        //                {
+        //                    displaybitmap.GetPixel(_x, _y).ToHsv(out float _, out float _, out float v);
+        //                    gv = v;
+        //                }
+
+        //                sum += gv;// * kernel[(yy + 1) * 3 + xx + 1];
+        //            }
+
+        //        sum /= 9;
+        //        displaybitmap.GetPixel(col, row).ToHsv(out float hue, out float sat, out float _);
+        //        _bmp.SetPixel(col, row, SKColor.FromHsv(hue, sat, sum));
+        //    }
+        //}
 
         //unsafe
         //{
@@ -130,7 +166,7 @@ public class MainViewModel : ViewModelBase
         //wBitmap.CopyPixels(new PixelRect(0, 0, displaybitmap.Width, displaybitmap.Height), displaybitmap.GetPixels(), displaybitmap.ByteCount, displaybitmap.RowBytes);
         //_invalidate();
 
-        using var data = displaybitmap.Encode(SKEncodedImageFormat.Png, 100);
+        using var data = _bmp.Encode(SKEncodedImageFormat.Png, 100);
         using var mstream = new MemoryStream(data.ToArray());
         return new Bitmap(mstream);
     }
