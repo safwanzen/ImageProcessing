@@ -14,5 +14,10 @@
   </Design.DataContext>
 
   <!--<Image Source="/Assets/table.png"/>-->
-  <Image Source="{Binding bmp}"/>
+  <DockPanel LastChildFill="True">
+    <Slider DockPanel.Dock="Right" Minimum="0" Maximum="100" 
+            Value="{Binding Sliderval}"
+            Height="200"/>
+    <Image Source="{Binding bmp}"/>
+  </DockPanel>
 </UserControl>
