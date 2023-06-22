@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:ImageTest.ViewModels"
              x:CompileBindings="True"
+             xmlns:pages="clr-namespace:RenderDemo.Pages"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="ImageTest.Views.MainView"
              x:DataType="vm:MainViewModel">
@@ -15,11 +16,12 @@
 
   <!--<Image Source="/Assets/table.png"/>-->
   <DockPanel LastChildFill="True">
-    <Slider DockPanel.Dock="Right" Minimum="0" Maximum="100" 
+    <Slider DockPanel.Dock="Right" Minimum="0" Maximum="255" 
             Orientation="Vertical"
-            Value="{Binding Sliderval}"
+            Value="{Binding Sliderint}"
             Height="200"/>
+    <!--<pages:WriteableBitmapPage/>-->
+    <Image x:Name="image" Source="{Binding wBitmap}"/>
     <!--<Image x:Name="image" Source="{Binding bmp}"/>-->
-    <Image x:Name="image" Source="{Binding bmp}"/>
   </DockPanel>
 </UserControl>
