@@ -77,6 +77,9 @@ public class MainViewModel : ViewModelBase
         var bptr = (byte*)dispptr;
         var w = fb.Size.Width;
         var h = fb.Size.Height;
+        var count = w * h;
+
+        Marshal.Copy(displaybitmap.Bytes, 0, fb.Address, count);
 
         /*
         for (int y = 0; y < h; y++)
@@ -101,7 +104,8 @@ public class MainViewModel : ViewModelBase
 
         }*/
 
-        var count = w * h;
+        // threshold
+        /**/
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
@@ -111,13 +115,95 @@ public class MainViewModel : ViewModelBase
                 //byte r = (byte)(*(alphaptr - 1) * 0.21f);
                 //byte grey = (byte)(b + g + r);
                 int i = y * w + x;
-                byte g = *(bptr + i * 4);
-                byte v = g > Sliderint ? byte.MaxValue : (byte)0;
+                //byte g = *(bptr + i * 4);
+                byte g = *(byte*)(dispptr + i);
+                byte v;// = g > Sliderint ? byte.MaxValue : (byte)0;
+                if (g > Sliderint + 20) v = byte.MaxValue;
+                else if (g < Sliderint - 20) v = 0;
+                else v = 100;
+
                 *(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
                 //*(alphaptr + i * 4) = g > Sliderint ? byte.MaxValue : (byte)0;
             }
 
-        //Marshal.Copy(data, 0, fb.Address, fb.Size.Width * fb.Size.Height);
+        var end = ptr + count;
+
+        byte Get(int* ptr, int x, int y, int width)
+        {
+            var p = (byte*)(ptr + x + y * width);
+            if (p < ptr || p > end) return 0;
+            return *p;
+        }
+
+        var data = new int[fb.Size.Width * fb.Size.Height];
+
+        // median
+        /*
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                List<byte> glist = new();
+                //int sum = GetFirstByte(ptr, x - 1, y - 1, w) +
+                //    GetFirstByte(ptr, x - 0, y - 1, w) +
+                //    GetFirstByte(ptr, x + 1, y - 1, w) +
+                //    GetFirstByte(ptr, x - 1, y - 0, w) +
+                //    GetFirstByte(ptr, x - 0, y - 0, w) +
+                //    GetFirstByte(ptr, x + 1, y - 0, w) +
+                //    GetFirstByte(ptr, x - 1, y + 1, w) +
+                //    GetFirstByte(ptr, x - 0, y + 1, w) +
+                //    GetFirstByte(ptr, x + 1, y + 1, w);
+                //sum /= 9;
+
+                float sum =
+                    GetFirstByte(ptr, x - 0, y - 1, w) * 0.125f +
+                    GetFirstByte(ptr, x - 1, y - 0, w) * 0.125f +
+                    GetFirstByte(ptr, x - 0, y - 0, w) * 0.5f +
+                    GetFirstByte(ptr, x + 1, y - 0, w) * 0.125f +
+                    GetFirstByte(ptr, x - 0, y + 1, w) * 0.125f;
+
+                var mid = (byte)sum;
+                //glist.Sort();
+                //var mid = glist[4];
+                data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
+            }*/
+
+        // sobel edge detect
+        int[] sobelHkernel = new int[]
+        {
+            1, 0, -1,
+            2, 0, -2,
+            1, 0, -1
+        };
+
+        int[] sobelVkernel = new int[]
+        {
+            1, 2,  1,
+            0, 0,  0,
+            -1, -2, -1
+        };
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                List<byte> glist = new();
+
+                int sobelxsum = 0;
+                int sobelysum = 0;
+
+                for (int j = -1; j < 2; j++)
+                    for (int i = -1; i < 2; i++)
+                    {
+                        sobelxsum += Get(ptr, x + i, y + j, w) * sobelHkernel[i + 1 + (j + 1 * 3)];
+                        sobelysum += Get(ptr, x + i, y + j, w) * sobelVkernel[i + 1 + (j + 1 * 3)];
+                    }
+
+                var mid = (byte)((sobelxsum + sobelysum) / 2f);
+                //glist.Sort();
+                //var mid = glist[4];
+                data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
+            }
+
+        Marshal.Copy(data, 0, fb.Address, fb.Size.Width * fb.Size.Height);
         //wBitmap.CopyPixels(new PixelRect(0, 0, _bmp.Width, _bmp.Height), pixels, _bmp.Width*_bmp.Height, _bmp.RowBytes);
 
         _invalidate();
