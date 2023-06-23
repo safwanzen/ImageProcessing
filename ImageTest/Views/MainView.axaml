@@ -16,10 +16,14 @@
 
   <!--<Image Source="/Assets/table.png"/>-->
   <DockPanel LastChildFill="True">
-    <Slider DockPanel.Dock="Right" Minimum="0" Maximum="255" 
+    <!--<Slider DockPanel.Dock="Right" Minimum="0" Maximum="255" 
             Orientation="Vertical"
             Value="{Binding Sliderint}"
-            Height="200"/>
+            Height="200"/>-->
+    <Slider DockPanel.Dock="Right" Minimum="0" Maximum="1"
+            Orientation="Vertical"
+            Value="{Binding Sliderval}"
+            Height="300"/>
     <!--<pages:WriteableBitmapPage/>-->
     <Image x:Name="image" Source="{Binding wBitmap}"/>
     <!--<Image x:Name="image" Source="{Binding bmp}"/>-->
