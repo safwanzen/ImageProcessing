@@ -24,7 +24,7 @@ public class MainViewModel : ViewModelBase
         //_invalidate = invalidate;
         Init();
 
-        this.WhenAnyValue(x => x.Sliderval)
+        this.WhenAnyValue(x => x.Sliderint)
             .Subscribe(x =>
             {
                 RedrawUnsafe();
@@ -78,6 +78,7 @@ public class MainViewModel : ViewModelBase
         var w = fb.Size.Width;
         var h = fb.Size.Height;
         var count = w * h;
+        var data = new byte[count * 4];
 
         //Marshal.Copy(displaybitmap.Bytes, 0, fb.Address, count);
 
@@ -105,7 +106,7 @@ public class MainViewModel : ViewModelBase
         }*/
 
         // threshold
-        /*
+        /**/
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
@@ -117,14 +118,21 @@ public class MainViewModel : ViewModelBase
                 int i = y * w + x;
                 //byte g = *(bptr + i * 4);
                 byte g = *(byte*)(dispptr + i);
-                byte v;// = g > Sliderint ? byte.MaxValue : (byte)0;
-                if (g > Sliderint + 20) v = byte.MaxValue;
-                else if (g < Sliderint - 20) v = 0;
-                else v = 100;
+                byte v = g > Sliderint ? g : (byte)0;
+                //if (g < Sliderint) continue;
+                //v = g;
+                //if (g > Sliderint + 20) v = byte.MaxValue;
+                //else if (g < Sliderint - 20) v = 0;
+                //else v = 100;
 
-                *(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
+                //*(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
+                int idx = (y * w + x) * 4;
+                data[idx] = v;
+                data[idx + 1] = v;
+                data[idx + 2] = v;
+                data[idx + 3] = byte.MaxValue;
                 //*(alphaptr + i * 4) = g > Sliderint ? byte.MaxValue : (byte)0;
-            }*/
+            }
 
 
         byte Get(int* ptr, int x, int y, int width)
@@ -136,7 +144,6 @@ public class MainViewModel : ViewModelBase
         }
 
         //var data = new int[fb.Size.Width * fb.Size.Height];
-        var data = new byte[count * 4];
 
         // median
         /*
@@ -168,22 +175,8 @@ public class MainViewModel : ViewModelBase
                 data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
             }*/
 
-        #region sobel edge detect
         /*
-        float[] sobelHkernel = new float[]
-        {
-            .01f, 0, -.01f,
-            .02f, 0, -.02f,
-            .01f, 0, -.01f
-        };
-
-        float[] sobelVkernel = new float[]
-        {
-            .01f, .02f,  .01f,
-            0, 0,  0,
-            -.01f, -.02f, -.01f
-        };
-        */
+        #region sobel edge detect
 
         int[] sobelHkernel = new int[]
         {
@@ -202,8 +195,6 @@ public class MainViewModel : ViewModelBase
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
-                //List<byte> glist = new();
-
                 int sobelxsum = 0;
                 int sobelysum = 0;
 
@@ -213,14 +204,14 @@ public class MainViewModel : ViewModelBase
                         var val = Get(dispptr, x + i, y + j, w);
                         var valx = val * sobelHkernel[(j + 1) * 3 + i + 1];
                         var valy = val * sobelVkernel[(j + 1) * 3 + i + 1];
-                        sobelxsum += (int)(valx * Sliderval);
-                        sobelysum += (int)(valy * Sliderval);
+                        sobelxsum += valx;
+                        sobelysum += valy;
                     }
 
                 // clip value to 0 ~ 255
                 sobelxsum = sobelxsum < 0 ? 0 : sobelxsum;
                 sobelxsum = sobelxsum > 255 ? 255 : sobelxsum;
-                
+
                 sobelysum = sobelysum < 0 ? 0 : sobelysum;
                 sobelysum = sobelysum > 255 ? 255 : sobelysum;
 
@@ -235,8 +226,52 @@ public class MainViewModel : ViewModelBase
                 data[idx + 3] = byte.MaxValue;
                 //*(ptr + y * w + x) = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
             }
-        #endregion sobel edge detect
+        #endregion sobel edge detect*/
 
+
+        /*
+        #region sharpen / blur
+
+        int[] sharpkernel = new int[]
+        {
+            -1, -1, -1,
+            -1, Sliderint, -1,
+            -1, -1, -1,
+        };
+
+        int[] blurkernel = new int[]
+        {
+            1,  4,  6,  4,  1,
+            4, 16, 24, 16,  4,
+            6, 24, 36, 24,  6,
+            4, 16, 24, 16,  4,
+            1,  4,  6,  4,  1,
+        };
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float sum = 0;
+
+                for (int j = -2; j < 3; j++)
+                    for (int i = -2; i < 3; i++)
+                    {
+                        //sum += Get(dispptr, x + i, y + j, w) * sharpkernel[(j + 1) * 3 + i + 1];
+                        sum += blurkernel[(j + 2) * 5 + i + 2] * Get(dispptr, x + i, y + j, w); 
+                    }
+
+                sum /= 256;
+                sum = sum > byte.MaxValue ? byte.MaxValue : sum;
+                
+                var idx = (y * w + x) * 4;
+                data[idx] = (byte)sum;
+                data[idx + 1] = (byte)sum;
+                data[idx + 2] = (byte)sum;
+                data[idx + 3] = byte.MaxValue;
+            }
+
+        #endregion sharpen
+*/
         Marshal.Copy(data, 0, fb.Address, fb.Size.Width * fb.Size.Height * 4);
         //wBitmap.CopyPixels(new PixelRect(0, 0, _bmp.Width, _bmp.Height), pixels, _bmp.Width*_bmp.Height, _bmp.RowBytes);
 
@@ -423,5 +458,5 @@ public class MainViewModel : ViewModelBase
     [Reactive] public WriteableBitmap wBitmap { get; set; }
     [Reactive] public Bitmap bmp { get; set; }
     [Reactive] public float Sliderval { get; set; } = .5f;
-    [Reactive] public byte Sliderint { get; set; } = 0;
+    [Reactive] public byte Sliderint { get; set; } = 10;
 }
