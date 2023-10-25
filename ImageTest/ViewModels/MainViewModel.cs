@@ -12,6 +12,7 @@ using Avalonia.Skia.Helpers;
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace ImageTest.ViewModels;
 
@@ -19,12 +20,27 @@ public class MainViewModel : ViewModelBase
 {
     public Action _invalidate = delegate { };
 
+    public enum Mode
+    {
+        Threshold,
+        Median,
+        Sobel,
+        Sharpen
+    }
+
+    [Reactive] public Mode Filter { get; set; } = Mode.Threshold;
+    [Reactive] public List<Mode> Filters { get; private set; } = new();
+
     public MainViewModel(/*Action invalidate*/)
     {
         //_invalidate = invalidate;
         Init();
 
-        this.WhenAnyValue(x => x.Sliderint)
+        Filters = Enum.GetValues(typeof(Mode)).Cast<Mode>().ToList();
+        this.WhenAnyValue(x => x.Filter)
+            .Subscribe(_ => RedrawUnsafe());
+
+        this.WhenAnyValue(x => x.Sliderval)
             .Subscribe(x =>
             {
                 RedrawUnsafe();
@@ -105,35 +121,36 @@ public class MainViewModel : ViewModelBase
 
         }*/
 
-        // threshold
-        /**/
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                // 0.21f, 0.72f, 0.07f
-                //byte b = (byte)(*(alphaptr - 3) * 0.07f);
-                //byte g = (byte)(*(alphaptr - 2) * 0.72f);
-                //byte r = (byte)(*(alphaptr - 1) * 0.21f);
-                //byte grey = (byte)(b + g + r);
-                int i = y * w + x;
-                //byte g = *(bptr + i * 4);
-                byte g = *(byte*)(dispptr + i);
-                byte v = g > Sliderint ? g : (byte)0;
-                //if (g < Sliderint) continue;
-                //v = g;
-                //if (g > Sliderint + 20) v = byte.MaxValue;
-                //else if (g < Sliderint - 20) v = 0;
-                //else v = 100;
+        if (Filter == Mode.Threshold)
+        {
+            // threshold
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    // 0.21f, 0.72f, 0.07f
+                    //byte b = (byte)(*(alphaptr - 3) * 0.07f);
+                    //byte g = (byte)(*(alphaptr - 2) * 0.72f);
+                    //byte r = (byte)(*(alphaptr - 1) * 0.21f);
+                    //byte grey = (byte)(b + g + r);
+                    int i = y * w + x;
+                    //byte g = *(bptr + i * 4);
+                    byte g = *(byte*)(dispptr + i);
+                    byte v = g > (byte)(Sliderval / 100 * byte.MaxValue) ? g : (byte)0;
+                    //if (g < Sliderint) continue;
+                    //v = g;
+                    //if (g > Sliderint + 20) v = byte.MaxValue;
+                    //else if (g < Sliderint - 20) v = 0;
+                    //else v = 100;
 
-                //*(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
-                int idx = (y * w + x) * 4;
-                data[idx] = v;
-                data[idx + 1] = v;
-                data[idx + 2] = v;
-                data[idx + 3] = byte.MaxValue;
-                //*(alphaptr + i * 4) = g > Sliderint ? byte.MaxValue : (byte)0;
-            }
-
+                    //*(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
+                    int idx = (y * w + x) * 4;
+                    data[idx] = v;
+                    data[idx + 1] = v;
+                    data[idx + 2] = v;
+                    data[idx + 3] = byte.MaxValue;
+                    //*(alphaptr + i * 4) = g > Sliderint ? byte.MaxValue : (byte)0;
+                }
+        }
 
         byte Get(int* ptr, int x, int y, int width)
         {
@@ -145,133 +162,133 @@ public class MainViewModel : ViewModelBase
 
         //var data = new int[fb.Size.Width * fb.Size.Height];
 
-        // median
-        /*
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                List<byte> glist = new();
-                //int sum = GetFirstByte(ptr, x - 1, y - 1, w) +
-                //    GetFirstByte(ptr, x - 0, y - 1, w) +
-                //    GetFirstByte(ptr, x + 1, y - 1, w) +
-                //    GetFirstByte(ptr, x - 1, y - 0, w) +
-                //    GetFirstByte(ptr, x - 0, y - 0, w) +
-                //    GetFirstByte(ptr, x + 1, y - 0, w) +
-                //    GetFirstByte(ptr, x - 1, y + 1, w) +
-                //    GetFirstByte(ptr, x - 0, y + 1, w) +
-                //    GetFirstByte(ptr, x + 1, y + 1, w);
-                //sum /= 9;
-
-                float sum =
-                    GetFirstByte(ptr, x - 0, y - 1, w) * 0.125f +
-                    GetFirstByte(ptr, x - 1, y - 0, w) * 0.125f +
-                    GetFirstByte(ptr, x - 0, y - 0, w) * 0.5f +
-                    GetFirstByte(ptr, x + 1, y - 0, w) * 0.125f +
-                    GetFirstByte(ptr, x - 0, y + 1, w) * 0.125f;
-
-                var mid = (byte)sum;
-                //glist.Sort();
-                //var mid = glist[4];
-                data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
-            }*/
-
-        /*
-        #region sobel edge detect
-
-        int[] sobelHkernel = new int[]
+        if (Filter == Mode.Median)
         {
+            // median
+            /**/
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    List<byte> glist = new();
+                    //int sum = 
+                    //    Get(dispptr, x - 1, y - 1, w) +
+                    //    Get(dispptr, x - 0, y - 1, w) +
+                    //    Get(dispptr, x + 1, y - 1, w) +
+                    //    Get(dispptr, x - 1, y - 0, w) +
+                    //    Get(dispptr, x - 0, y - 0, w) +
+                    //    Get(dispptr, x + 1, y - 0, w) +
+                    //    Get(dispptr, x - 1, y + 1, w) +
+                    //    Get(dispptr, x - 0, y + 1, w) +
+                    //    Get(dispptr, x + 1, y + 1, w);
+                    //sum /= 9;
+
+                    float sum =
+                        Get(dispptr, x - 0, y - 1, w) * 0.125f +
+                        Get(dispptr, x - 1, y - 0, w) * 0.125f +
+                        Get(dispptr, x - 0, y - 0, w) * 0.5f +
+                        Get(dispptr, x + 1, y - 0, w) * 0.125f +
+                        Get(dispptr, x - 0, y + 1, w) * 0.125f;
+
+                    var mid = (byte)sum;
+                    //glist.Sort();
+                    //var mid = glist[4];
+                    int idx = (y * w + x) * 4;
+                    data[idx] = (byte)(mid | mid << 8 | mid << 16 | byte.MaxValue << 24);
+                }
+        }
+
+        if (Filter == Mode.Sobel)
+        {
+            int[] sobelHkernel = new int[]
+            {
             -1, 0, 1,
             -2, 0, 2,
             -1, 0, 1
-        };
+            };
 
-        int[] sobelVkernel = new int[]
-        {
+            int[] sobelVkernel = new int[]
+            {
             -1,  -2,  -1,
             0,  0,  0,
             1, 2, 1
-        };
+            };
 
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int sobelxsum = 0;
+                    int sobelysum = 0;
+
+                    for (int j = -1; j < 2; j++)
+                        for (int i = -1; i < 2; i++)
+                        {
+                            var val = Get(dispptr, x + i, y + j, w);
+                            var valx = val * sobelHkernel[(j + 1) * 3 + i + 1];
+                            var valy = val * sobelVkernel[(j + 1) * 3 + i + 1];
+                            sobelxsum += valx;
+                            sobelysum += valy;
+                        }
+
+                    // clip value to 0 ~ 255
+                    sobelxsum = sobelxsum < 0 ? 0 : sobelxsum;
+                    sobelxsum = sobelxsum > 255 ? 255 : sobelxsum;
+
+                    sobelysum = sobelysum < 0 ? 0 : sobelysum;
+                    sobelysum = sobelysum > 255 ? 255 : sobelysum;
+
+                    var mid = (byte)((sobelxsum + sobelysum) / 2);
+                    //glist.Sort();
+                    //var mid = glist[4];
+                    //data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
+                    int idx = (y * w + x) * 4;
+                    data[idx] = mid;
+                    data[idx + 1] = mid;
+                    data[idx + 2] = mid;
+                    data[idx + 3] = byte.MaxValue;
+                    //*(ptr + y * w + x) = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
+                }
+        }
+
+        if (Filter == Mode.Sharpen)
+        {
+            int[] sharpkernel = new int[]
             {
-                int sobelxsum = 0;
-                int sobelysum = 0;
-
-                for (int j = -1; j < 2; j++)
-                    for (int i = -1; i < 2; i++)
-                    {
-                        var val = Get(dispptr, x + i, y + j, w);
-                        var valx = val * sobelHkernel[(j + 1) * 3 + i + 1];
-                        var valy = val * sobelVkernel[(j + 1) * 3 + i + 1];
-                        sobelxsum += valx;
-                        sobelysum += valy;
-                    }
-
-                // clip value to 0 ~ 255
-                sobelxsum = sobelxsum < 0 ? 0 : sobelxsum;
-                sobelxsum = sobelxsum > 255 ? 255 : sobelxsum;
-
-                sobelysum = sobelysum < 0 ? 0 : sobelysum;
-                sobelysum = sobelysum > 255 ? 255 : sobelysum;
-
-                var mid = (byte)((sobelxsum + sobelysum) / 2);
-                //glist.Sort();
-                //var mid = glist[4];
-                //data[y * w + x] = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
-                int idx = (y * w + x) * 4;
-                data[idx] = mid;
-                data[idx + 1] = mid;
-                data[idx + 2] = mid;
-                data[idx + 3] = byte.MaxValue;
-                //*(ptr + y * w + x) = mid | mid << 8 | mid << 16 | byte.MaxValue << 24;
-            }
-        #endregion sobel edge detect*/
-
-
-        /*
-        #region sharpen / blur
-
-        int[] sharpkernel = new int[]
-        {
             -1, -1, -1,
-            -1, Sliderint, -1,
+            -1, (int)(Sliderval / 100), -1,
             -1, -1, -1,
-        };
+            };
 
-        int[] blurkernel = new int[]
-        {
+            int[] blurkernel = new int[]
+            {
             1,  4,  6,  4,  1,
             4, 16, 24, 16,  4,
             6, 24, 36, 24,  6,
             4, 16, 24, 16,  4,
             1,  4,  6,  4,  1,
-        };
+            };
 
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                float sum = 0;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float sum = 0;
 
-                for (int j = -2; j < 3; j++)
-                    for (int i = -2; i < 3; i++)
-                    {
-                        //sum += Get(dispptr, x + i, y + j, w) * sharpkernel[(j + 1) * 3 + i + 1];
-                        sum += blurkernel[(j + 2) * 5 + i + 2] * Get(dispptr, x + i, y + j, w); 
-                    }
+                    for (int j = -2; j < 3; j++)
+                        for (int i = -2; i < 3; i++)
+                        {
+                            //sum += Get(dispptr, x + i, y + j, w) * sharpkernel[(j + 1) * 3 + i + 1];
+                            sum += blurkernel[(j + 2) * 5 + i + 2] * Get(dispptr, x + i, y + j, w);
+                        }
 
-                sum /= 256;
-                sum = sum > byte.MaxValue ? byte.MaxValue : sum;
-                
-                var idx = (y * w + x) * 4;
-                data[idx] = (byte)sum;
-                data[idx + 1] = (byte)sum;
-                data[idx + 2] = (byte)sum;
-                data[idx + 3] = byte.MaxValue;
-            }
+                    sum /= 256;
+                    sum = sum > byte.MaxValue ? byte.MaxValue : sum;
 
-        #endregion sharpen
-*/
+                    var idx = (y * w + x) * 4;
+                    data[idx] = (byte)sum;
+                    data[idx + 1] = (byte)sum;
+                    data[idx + 2] = (byte)sum;
+                    data[idx + 3] = byte.MaxValue;
+                }
+        }
         Marshal.Copy(data, 0, fb.Address, fb.Size.Width * fb.Size.Height * 4);
         //wBitmap.CopyPixels(new PixelRect(0, 0, _bmp.Width, _bmp.Height), pixels, _bmp.Width*_bmp.Height, _bmp.RowBytes);
 
@@ -457,6 +474,6 @@ public class MainViewModel : ViewModelBase
     public RenderTargetBitmap renderBitmap { get; set; }
     [Reactive] public WriteableBitmap wBitmap { get; set; }
     [Reactive] public Bitmap bmp { get; set; }
-    [Reactive] public float Sliderval { get; set; } = .5f;
+    [Reactive] public float Sliderval { get; set; } = 50f;
     [Reactive] public byte Sliderint { get; set; } = 10;
 }
