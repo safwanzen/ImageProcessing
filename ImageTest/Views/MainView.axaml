@@ -25,7 +25,7 @@
             Value="{Binding Sliderval}"
             Height="300"/>-->
     <!--<pages:WriteableBitmapPage/>-->
-    <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}"/>
+    <ComboBox DockPanel.Dock="Left" Width="150" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}"/>
     <Image x:Name="image" Source="{Binding wBitmap}"/>
     <!--<Image x:Name="image" Source="{Binding bmp}"/>-->
   </DockPanel>

@@ -135,12 +135,8 @@ public class MainViewModel : ViewModelBase
                     int i = y * w + x;
                     //byte g = *(bptr + i * 4);
                     byte g = *(byte*)(dispptr + i);
-                    byte v = g > (byte)(Sliderval / 100 * byte.MaxValue) ? g : (byte)0;
-                    //if (g < Sliderint) continue;
-                    //v = g;
-                    //if (g > Sliderint + 20) v = byte.MaxValue;
-                    //else if (g < Sliderint - 20) v = 0;
-                    //else v = 100;
+                    byte v = g > (byte)(Sliderval / 100 * byte.MaxValue) ? byte.MaxValue : (byte)0;
+
 
                     //*(ptr + i) = v | v << 8 | v << 16 | byte.MaxValue << 24;
                     int idx = (y * w + x) * 4;
@@ -193,7 +189,10 @@ public class MainViewModel : ViewModelBase
                     //glist.Sort();
                     //var mid = glist[4];
                     int idx = (y * w + x) * 4;
-                    data[idx] = (byte)(mid | mid << 8 | mid << 16 | byte.MaxValue << 24);
+                    data[idx] = mid;
+                    data[idx + 1] = mid;
+                    data[idx + 2] = mid;
+                    data[idx + 3] = byte.MaxValue;
                 }
         }
 
@@ -254,7 +253,7 @@ public class MainViewModel : ViewModelBase
             int[] sharpkernel = new int[]
             {
             -1, -1, -1,
-            -1, (int)(Sliderval / 100), -1,
+            -1, (int)Sliderval, -1,
             -1, -1, -1,
             };
 
@@ -291,7 +290,6 @@ public class MainViewModel : ViewModelBase
         }
         Marshal.Copy(data, 0, fb.Address, fb.Size.Width * fb.Size.Height * 4);
         //wBitmap.CopyPixels(new PixelRect(0, 0, _bmp.Width, _bmp.Height), pixels, _bmp.Width*_bmp.Height, _bmp.RowBytes);
-
         _invalidate();
     }
 
@@ -446,6 +444,7 @@ public class MainViewModel : ViewModelBase
             //bmp = new Bitmap(mstream);
             //renderBitmap = new RenderTargetBitmap(bmp.PixelSize);
 
+            // make greyscale
             var filter = SKColorFilter.CreateColorMatrix(new float[]
                 {
                 0.21f, 0.72f, 0.07f, 0, 0,
@@ -471,7 +470,6 @@ public class MainViewModel : ViewModelBase
     public string Greeting => "Welcome to Avalonia!";
     public SKBitmap sourcebitmap { get; set; }
     public SKBitmap displaybitmap { get; set; }
-    public RenderTargetBitmap renderBitmap { get; set; }
     [Reactive] public WriteableBitmap wBitmap { get; set; }
     [Reactive] public Bitmap bmp { get; set; }
     [Reactive] public float Sliderval { get; set; } = 50f;
